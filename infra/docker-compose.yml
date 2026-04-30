@@ -1,0 +1,43 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports: ["6333:6333", "6334:6334"]
+    volumes: ["./data/qdrant:/qdrant/storage"]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: ["./data/redis:/data"]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lf
+      POSTGRES_PASSWORD: lf
+      POSTGRES_DB: langfuse
+    ports: ["5432:5432"]
+    volumes: ["./data/pg:/var/lib/postgresql/data"]
+
+  langfuse:
+    image: langfuse/langfuse:2
+    depends_on: [postgres]
+    environment:
+      DATABASE_URL: postgresql://lf:lf@postgres:5432/langfuse
+      NEXTAUTH_SECRET: dev-secret
+      SALT: dev-salt
+      NEXTAUTH_URL: http://localhost:3001
+      TELEMETRY_ENABLED: "false"
+    ports: ["3001:3000"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports: ["9090:9090"]
+    volumes: ["./prometheus.yml:/etc/prometheus/prometheus.yml"]
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    ports: ["3002:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes: ["./data/grafana:/var/lib/grafana"]
