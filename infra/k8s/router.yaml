@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: insight-router }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: insight-router } }
+  template:
+    metadata: { labels: { app: insight-router } }
+    spec:
+      containers:
+        - name: router
+          image: ghcr.io/your-org/insight-agent-router:latest
+          ports: [{ containerPort: 8100 }]
+          env:
+            - { name: ROUTER_MODEL_DIR, value: /models/router }
+          volumeMounts:
+            - { name: model, mountPath: /models }
+      volumes:
+        - name: model
+          persistentVolumeClaim: { claimName: router-models }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: insight-router }
+spec:
+  selector: { app: insight-router }
+  ports: [{ port: 80, targetPort: 8100 }]
