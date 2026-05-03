@@ -5,8 +5,8 @@ export const metadata = { title: "InsightAgent", description: "Agentic multi-mod
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen">{children}</body>
+    <html lang="en" className="h-full">
+      <body className="h-full overflow-hidden">{children}</body>
     </html>
   );
 }
