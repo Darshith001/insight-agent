@@ -25,7 +25,7 @@ uvicorn apps.api.app.main:app --reload --port 8000
 cd apps/web && pnpm i && pnpm dev
 ```
 
-Open http://localhost:3000.
+
 
 ## Layout
 ```
