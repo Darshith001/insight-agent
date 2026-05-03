@@ -35,3 +35,50 @@ def to_sparse_vector(weights: dict) -> models.SparseVector:
         indices=[int(k) for k in weights.keys()],
         values=[float(v) for v in weights.values()],
     )
+
+
+def list_documents() -> list[dict]:
+    """Return distinct documents stored in Qdrant with chunk counts."""
+    s = get_settings()
+    qc = get_client()
+    seen: dict[str, dict] = {}
+    offset = None
+    while True:
+        result, offset = qc.scroll(
+            collection_name=s.qdrant_collection,
+            limit=1000,
+            with_payload=["doc_id", "source_uri"],
+            with_vectors=False,
+            offset=offset,
+        )
+        for pt in result:
+            did = (pt.payload or {}).get("doc_id", "unknown")
+            if did not in seen:
+                seen[did] = {
+                    "doc_id": did,
+                    "chunks": 0,
+                    "source_uri": (pt.payload or {}).get("source_uri", ""),
+                }
+            seen[did]["chunks"] += 1
+        if offset is None:
+            break
+    return list(seen.values())
+
+
+def delete_document(doc_id: str) -> bool:
+    """Delete all vectors belonging to a doc_id."""
+    s = get_settings()
+    qc = get_client()
+    qc.delete(
+        collection_name=s.qdrant_collection,
+        points_selector=models.FilterSelector(
+            filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="doc_id", match=models.MatchValue(value=doc_id)
+                    )
+                ]
+            )
+        ),
+    )
+    return True
