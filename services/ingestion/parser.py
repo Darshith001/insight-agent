@@ -33,6 +33,21 @@ def _table_to_markdown(item, doc) -> str:
         return str(item)
 
 
+def _safe_text(item, attr: str = "text") -> str:
+    """Safely extract a string attribute from a Docling item.
+    Guards against Docling returning a bound method instead of a string."""
+    val = getattr(item, attr, None)
+    if val is None:
+        return ""
+    # If it's callable (e.g. a bound method), call it
+    if callable(val):
+        try:
+            val = val()
+        except Exception:
+            return ""
+    return str(val).strip() if val else ""
+
+
 def _parse_with_docling(path: Path) -> list[dict]:
     from docling.document_converter import DocumentConverter
 
@@ -53,17 +68,17 @@ def _parse_with_docling(path: Path) -> list[dict]:
             page = _page_no(item)
 
             if "header" in kind or "title" in kind:
-                current_title = (getattr(item, "text", "") or "").strip() or current_title
+                current_title = _safe_text(item) or current_title
                 continue
             if "table" in kind:
                 md = _table_to_markdown(item, doc)
                 sections.append({"title": current_title, "page": page, "modality": "table", "text": md})
             elif "figure" in kind or "picture" in kind:
-                caption = (getattr(item, "caption_text", "") or "").strip()
+                caption = _safe_text(item, "caption_text")
                 if caption:
                     sections.append({"title": current_title, "page": page, "modality": "figure", "text": caption})
             else:
-                text = (getattr(item, "text", "") or "").strip()
+                text = _safe_text(item)
                 if text:
                     sections.append({"title": current_title, "page": page, "modality": "text", "text": text})
         except Exception as e:

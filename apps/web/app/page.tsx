@@ -128,29 +128,38 @@ function ChatPanel() {
         return;
       }
 
-      const reader = res.body!.getReader();
+      if (!res.body) { setError("No response body – check API is running"); setLoading(false); return; }
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
+      let chunkCount = 0;
+      console.log("[IA] stream started");
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+        if (done) { console.log("[IA] stream done, total chunks:", chunkCount); break; }
+        chunkCount++;
+        const raw = decoder.decode(value, { stream: true });
+        console.log("[IA] chunk #" + chunkCount, JSON.stringify(raw.slice(0, 120)));
+        buf += raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
         const events = buf.split("\n\n");
         buf = events.pop() || "";
         for (const ev of events) {
           const lines = ev.split("\n");
           const evt = lines.find(l => l.startsWith("event:"))?.slice(6).trim();
           const data = lines.find(l => l.startsWith("data:"))?.slice(5).trim();
+          console.log("[IA] event:", evt, "| data prefix:", data?.slice(0, 80));
           if (!evt || !data) continue;
           try {
             const payload = JSON.parse(data);
-            if (evt === "answer")         setAnswer(payload.text);
+            if (evt === "answer")         { setAnswer(payload.text); console.log("[IA] answer set, length:", payload.text?.length); }
             else if (evt === "citations") setCitations(payload);
             else if (evt === "critique")  setCritique(payload);
             else if (evt === "tier")      setMeta((m: any) => ({ ...(m || {}), ...payload }));
             else if (evt === "done")      setMeta((m: any) => ({ ...(m || {}), ...payload }));
             else if (evt === "error")     setError(`${payload.message}\n\n${payload.detail}`);
-          } catch {}
+          } catch (parseErr) {
+            console.error("[IA] JSON parse error for event", evt, parseErr);
+          }
         }
       }
     } catch (err: any) {
